@@ -1,0 +1,351 @@
+# Azure Pipeline - CI/CD for Digita Energy Admin
+# Replaces GitHub Actions with Azure Pipelines
+# Keeps: GitHub repo + Supabase database
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    exclude:
+      - README.md
+      - docs/*
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - name: NODE_VERSION
+    value: '20.x'
+  - name: PNPM_VERSION
+    value: '8'
+  - group: digita-energy-secrets # Create this in Azure DevOps Library
+
+stages:
+  # ========================================
+  # STAGE 1: BUILD & TEST
+  # ========================================
+  - stage: BuildAndTest
+    displayName: 'Build and Test'
+    jobs:
+      # Job 1: Lint & Type Check
+      - job: LintAndTypeCheck
+        displayName: 'Lint & Type Check'
+        steps:
+          - task: NodeTool@0
+            displayName: 'Install Node.js'
+            inputs:
+              versionSpec: $(NODE_VERSION)
+
+          - script: |
+              npm install -g pnpm@$(PNPM_VERSION)
+            displayName: 'Install pnpm'
+
+          - script: |
+              pnpm install --frozen-lockfile
+            displayName: 'Install dependencies'
+
+          - script: |
+              pnpm lint
+            displayName: 'Run ESLint'
+
+          - script: |
+              pnpm typecheck
+            displayName: 'Run TypeScript type check'
+
+          - script: |
+              pnpm exec prettier --check "**/*.{ts,tsx,js,jsx,json,md}"
+            displayName: 'Check code formatting'
+
+      # Job 2: Build
+      - job: Build
+        displayName: 'Build Applications'
+        dependsOn: LintAndTypeCheck
+        steps:
+          - task: NodeTool@0
+            displayName: 'Install Node.js'
+            inputs:
+              versionSpec: $(NODE_VERSION)
+
+          - script: |
+              npm install -g pnpm@$(PNPM_VERSION)
+            displayName: 'Install pnpm'
+
+          - script: |
+              pnpm install --frozen-lockfile
+            displayName: 'Install dependencies'
+
+          - script: |
+              pnpm build
+            displayName: 'Build all packages'
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish frontend build'
+            inputs:
+              PathtoPublish: 'apps/web/dist'
+              ArtifactName: 'frontend'
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish backend build'
+            inputs:
+              PathtoPublish: 'apps/api/dist'
+              ArtifactName: 'backend'
+
+      # Job 3: Unit Tests
+      - job: UnitTests
+        displayName: 'Unit Tests'
+        dependsOn: LintAndTypeCheck
+        steps:
+          - task: NodeTool@0
+            displayName: 'Install Node.js'
+            inputs:
+              versionSpec: $(NODE_VERSION)
+
+          - script: |
+              npm install -g pnpm@$(PNPM_VERSION)
+            displayName: 'Install pnpm'
+
+          - script: |
+              pnpm install --frozen-lockfile
+            displayName: 'Install dependencies'
+
+          - script: |
+              pnpm test
+            displayName: 'Run unit tests'
+            env:
+              DATABASE_URL: postgresql://postgres:postgres@localhost:5432/digita_energy_admin_test
+
+  # ========================================
+  # STAGE 2: E2E TESTS
+  # ========================================
+  - stage: E2ETests
+    displayName: 'E2E Tests'
+    dependsOn: BuildAndTest
+    condition: succeeded()
+    jobs:
+      - job: PlaywrightTests
+        displayName: 'Playwright E2E Tests'
+        timeoutInMinutes: 20
+        steps:
+          - task: NodeTool@0
+            displayName: 'Install Node.js'
+            inputs:
+              versionSpec: $(NODE_VERSION)
+
+          - script: |
+              npm install -g pnpm@$(PNPM_VERSION)
+            displayName: 'Install pnpm'
+
+          - script: |
+              pnpm install --frozen-lockfile
+            displayName: 'Install dependencies'
+
+          - script: |
+              pnpm exec playwright install --with-deps chromium
+            displayName: 'Install Playwright browsers'
+
+          - script: |
+              cp apps/api/.env.example apps/api/.env
+              cp apps/web/.env.example apps/web/.env
+              echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/digita_energy_admin_test" >> apps/api/.env
+              echo "JWT_SECRET=test-secret-key-for-ci-minimum-32-characters-long-enough" >> apps/api/.env
+              echo "NODE_ENV=test" >> apps/api/.env
+              echo "VITE_API_URL=http://localhost:3001/api" >> apps/web/.env
+            displayName: 'Setup environment files'
+
+          - script: |
+              cd apps/api
+              pnpm db:generate
+              pnpm db:migrate
+              pnpm db:seed
+            displayName: 'Run database migrations'
+            env:
+              DATABASE_URL: postgresql://postgres:postgres@localhost:5432/digita_energy_admin_test
+
+          - script: |
+              pnpm build
+            displayName: 'Build applications'
+
+          - script: |
+              pnpm test:e2e
+            displayName: 'Run E2E tests'
+            env:
+              CI: true
+              DATABASE_URL: postgresql://postgres:postgres@localhost:5432/digita_energy_admin_test
+
+          - task: PublishTestResults@2
+            displayName: 'Publish test results'
+            condition: always()
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '**/test-results/*.xml'
+              failTaskOnFailedTests: true
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish test reports'
+            condition: always()
+            inputs:
+              PathtoPublish: 'tests/reports'
+              ArtifactName: 'test-reports'
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish screenshots on failure'
+            condition: failed()
+            inputs:
+              PathtoPublish: 'tests/screenshots'
+              ArtifactName: 'test-screenshots'
+
+  # ========================================
+  # STAGE 3: DEPLOY TO STAGING
+  # ========================================
+  - stage: DeployStaging
+    displayName: 'Deploy to Staging'
+    dependsOn: 
+      - BuildAndTest
+      - E2ETests
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+    jobs:
+      - deployment: DeployFrontendStaging
+        displayName: 'Deploy Frontend to Azure Static Web Apps (Staging)'
+        environment: 'staging'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                  artifact: frontend
+
+                - task: AzureStaticWebApp@0
+                  displayName: 'Deploy to Azure Static Web Apps'
+                  inputs:
+                    app_location: '$(Pipeline.Workspace)/frontend'
+                    api_location: ''
+                    output_location: ''
+                    azure_static_web_apps_api_token: $(AZURE_STATIC_WEB_APPS_API_TOKEN_STAGING)
+
+      - deployment: DeployBackendStaging
+        displayName: 'Deploy Backend to Azure App Service (Staging)'
+        environment: 'staging'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                  artifact: backend
+
+                - task: AzureWebApp@1
+                  displayName: 'Deploy to Azure App Service'
+                  inputs:
+                    azureSubscription: 'Azure-Service-Connection'
+                    appType: 'webAppLinux'
+                    appName: 'digita-energy-api-staging'
+                    package: '$(Pipeline.Workspace)/backend'
+                    runtimeStack: 'NODE|20-lts'
+
+  # ========================================
+  # STAGE 4: DEPLOY TO PRODUCTION
+  # ========================================
+  - stage: DeployProduction
+    displayName: 'Deploy to Production'
+    dependsOn: 
+      - BuildAndTest
+      - E2ETests
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: DeployFrontendProduction
+        displayName: 'Deploy Frontend to Azure Static Web Apps (Production)'
+        environment: 'production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                  artifact: frontend
+
+                - task: AzureStaticWebApp@0
+                  displayName: 'Deploy to Azure Static Web Apps'
+                  inputs:
+                    app_location: '$(Pipeline.Workspace)/frontend'
+                    api_location: ''
+                    output_location: ''
+                    azure_static_web_apps_api_token: $(AZURE_STATIC_WEB_APPS_API_TOKEN_PRODUCTION)
+
+      - deployment: DeployBackendProduction
+        displayName: 'Deploy Backend to Azure App Service (Production)'
+        environment: 'production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                  artifact: backend
+
+                - task: AzureWebApp@1
+                  displayName: 'Deploy to Azure App Service'
+                  inputs:
+                    azureSubscription: 'Azure-Service-Connection'
+                    appType: 'webAppLinux'
+                    appName: 'digita-energy-api-production'
+                    package: '$(Pipeline.Workspace)/backend'
+                    runtimeStack: 'NODE|20-lts'
+                    
+                - task: AzureAppServiceSettings@1
+                  displayName: 'Configure App Settings'
+                  inputs:
+                    azureSubscription: 'Azure-Service-Connection'
+                    appName: 'digita-energy-api-production'
+                    resourceGroupName: 'digita-energy-rg'
+                    appSettings: |
+                      [
+                        {
+                          "name": "DATABASE_URL",
+                          "value": "$(SUPABASE_DATABASE_URL)",
+                          "slotSetting": false
+                        },
+                        {
+                          "name": "SUPABASE_URL",
+                          "value": "$(SUPABASE_URL)",
+                          "slotSetting": false
+                        },
+                        {
+                          "name": "SUPABASE_ANON_KEY",
+                          "value": "$(SUPABASE_ANON_KEY)",
+                          "slotSetting": false
+                        },
+                        {
+                          "name": "JWT_SECRET",
+                          "value": "$(JWT_SECRET)",
+                          "slotSetting": false
+                        },
+                        {
+                          "name": "NODE_ENV",
+                          "value": "production",
+                          "slotSetting": false
+                        }
+                      ]
+
+  # ========================================
+  # STAGE 5: SMOKE TESTS (Production)
+  # ========================================
+  - stage: SmokeTests
+    displayName: 'Production Smoke Tests'
+    dependsOn: DeployProduction
+    condition: succeeded()
+    jobs:
+      - job: SmokeTest
+        displayName: 'Run Smoke Tests'
+        steps:
+          - script: |
+              curl -f https://digita-energy-admin.azurestaticapps.net/health || exit 1
+            displayName: 'Check frontend health'
+
+          - script: |
+              curl -f https://digita-energy-api-production.azurewebsites.net/health || exit 1
+            displayName: 'Check backend health'
