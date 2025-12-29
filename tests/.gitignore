@@ -1,0 +1,17 @@
+# Playwright Test Artifacts
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Test Reports
+reports/
+*.html
+trace.zip
+
+# Screenshots and Videos
+screenshots/
+videos/
+
+# Playwright state
+.auth/
+storage-state.json

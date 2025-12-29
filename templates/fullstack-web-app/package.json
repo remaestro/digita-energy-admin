@@ -1,0 +1,31 @@
+{
+  "name": "{{PROJECT_NAME}}",
+  "version": "1.0.0",
+  "description": "{{PROJECT_DESCRIPTION}}",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel --filter web --filter api dev",
+    "build": "pnpm --filter web build && pnpm --filter api build",
+    "start": "pnpm --parallel --filter web --filter api start",
+    "lint": "pnpm --recursive lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "typecheck": "pnpm --recursive typecheck",
+    "test": "pnpm --recursive test",
+    "db:migrate": "pnpm --filter api db:migrate",
+    "db:studio": "pnpm --filter api db:studio",
+    "db:seed": "pnpm --filter api db:seed"
+  },
+  "keywords": [
+    "react",
+    "express",
+    "typescript",
+    "postgresql",
+    "supabase"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

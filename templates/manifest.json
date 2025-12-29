@@ -1,0 +1,114 @@
+{
+  "version": "1.0.0",
+  "templates": [
+    {
+      "id": "fullstack-web-app",
+      "name": "Full-Stack Web Application",
+      "description": "Complete SaaS starter with React frontend, Express backend, PostgreSQL database, and Supabase integration",
+      "type": "fullstack",
+      "icon": "🚀",
+      "category": "web",
+      "tags": ["react", "express", "typescript", "postgres", "supabase"],
+      "requiredEnvVars": [
+        "DATABASE_URL",
+        "SUPABASE_URL",
+        "SUPABASE_ANON_KEY",
+        "JWT_SECRET",
+        "PORT"
+      ],
+      "templateVariables": [
+        "{{PROJECT_NAME}}",
+        "{{PROJECT_DESCRIPTION}}",
+        "{{DATABASE_URL}}",
+        "{{SUPABASE_URL}}",
+        "{{SUPABASE_ANON_KEY}}",
+        "{{PORT}}"
+      ],
+      "dependencies": {
+        "node": ">=20.0.0",
+        "pnpm": ">=8.0.0"
+      },
+      "setupScript": "setup.sh",
+      "estimatedSetupTime": "3-5 minutes"
+    },
+    {
+      "id": "landing-page",
+      "name": "Landing Page",
+      "description": "Modern marketing website with React, Tailwind CSS, and SEO optimization",
+      "type": "frontend",
+      "icon": "🎨",
+      "category": "web",
+      "tags": ["react", "typescript", "tailwind", "seo", "marketing"],
+      "requiredEnvVars": [
+        "VITE_SITE_URL",
+        "VITE_CONTACT_EMAIL"
+      ],
+      "templateVariables": [
+        "{{PROJECT_NAME}}",
+        "{{PROJECT_DESCRIPTION}}",
+        "{{SITE_URL}}",
+        "{{CONTACT_EMAIL}}"
+      ],
+      "dependencies": {
+        "node": ">=20.0.0",
+        "pnpm": ">=8.0.0"
+      },
+      "setupScript": "setup.sh",
+      "estimatedSetupTime": "1-2 minutes"
+    },
+    {
+      "id": "mobile-app",
+      "name": "Mobile Application",
+      "description": "Cross-platform mobile app with React Native, Expo, and Supabase backend",
+      "type": "mobile",
+      "icon": "📱",
+      "category": "mobile",
+      "tags": ["react-native", "expo", "typescript", "supabase", "mobile"],
+      "requiredEnvVars": [
+        "EXPO_PUBLIC_SUPABASE_URL",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY"
+      ],
+      "templateVariables": [
+        "{{PROJECT_NAME}}",
+        "{{PROJECT_DESCRIPTION}}",
+        "{{SUPABASE_URL}}",
+        "{{SUPABASE_ANON_KEY}}",
+        "{{APP_SLUG}}"
+      ],
+      "dependencies": {
+        "node": ">=20.0.0",
+        "pnpm": ">=8.0.0"
+      },
+      "setupScript": "setup.sh",
+      "estimatedSetupTime": "3-5 minutes"
+    },
+    {
+      "id": "api-service",
+      "name": "REST API Service",
+      "description": "Production-ready REST API with Express, Prisma, PostgreSQL, and JWT authentication",
+      "type": "backend",
+      "icon": "⚡",
+      "category": "api",
+      "tags": ["express", "typescript", "postgres", "prisma", "jwt", "rest"],
+      "requiredEnvVars": [
+        "DATABASE_URL",
+        "JWT_SECRET",
+        "PORT",
+        "NODE_ENV"
+      ],
+      "templateVariables": [
+        "{{PROJECT_NAME}}",
+        "{{PROJECT_DESCRIPTION}}",
+        "{{DATABASE_URL}}",
+        "{{JWT_SECRET}}",
+        "{{PORT}}"
+      ],
+      "dependencies": {
+        "node": ">=20.0.0",
+        "pnpm": ">=8.0.0"
+      },
+      "setupScript": "setup.sh",
+      "estimatedSetupTime": "2-3 minutes"
+    }
+  ]
+}
