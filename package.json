@@ -1,0 +1,41 @@
+{
+  "name": "digita-energy-admin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Web-based project management platform for generating and deploying pre-configured software projects",
+  "scripts": {
+    "dev": "pnpm --parallel --filter web --filter api dev",
+    "build": "pnpm --recursive build",
+    "test": "pnpm --recursive test",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "lint": "pnpm --recursive lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "typecheck": "pnpm --recursive typecheck",
+    "clean": "pnpm --recursive clean && rm -rf node_modules",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "setup": "pnpm install && pnpm docker:up && pnpm --filter api db:migrate"
+  },
+  "keywords": [
+    "project-generator",
+    "admin-dashboard",
+    "monorepo",
+    "lovable-ai-stack"
+  ],
+  "author": "Digita Energy",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.40.1",
+    "@types/node": "^20.10.5",
+    "eslint": "^8.56.0",
+    "prettier": "^3.1.1",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}

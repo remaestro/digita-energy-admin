@@ -1,0 +1,6 @@
+{
+  "name": "@digita/config-eslint",
+  "version": "1.0.0",
+  "private": true,
+  "main": ".eslintrc.js"
+}
